@@ -208,6 +208,10 @@ Run the synthetic shader compiler/cache check (requires DXC on `PATH`):
 .\build\Release\RayTime.exe --validate-shader .\shaders\phase3_smoke.hlsl --stage compute
 ```
 
+The CTest shader checks validate the compute, vertex, and pixel profiles. DXC
+is optional for the rest of the application; shader tests are skipped when it
+is not available.
+
 ## Design Philosophy
 
 ConsoleX follows four main principles:

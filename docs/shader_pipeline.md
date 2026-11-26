@@ -26,6 +26,10 @@ dependency tracking is not implemented yet, so caching those files could
 return stale bytecode. The compiler captures bounded stdout/stderr diagnostics
 and returns them with successful builds; nonzero DXC exit codes are errors.
 
+The synthetic smoke shader exposes compute, vertex, and pixel entry points.
+CTest compiles and validates all three profiles; the compute test also verifies
+that a repeated compile is served from the cache.
+
 ## Commands
 
 ```powershell

@@ -46,10 +46,24 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_SOURCE_DIR}/shaders/phase3_smoke.hlsl"
             --stage compute
     )
+    add_test(
+        NAME shader_dxc_vertex_validation
+        COMMAND RayTime --validate-shader
+            "${CMAKE_CURRENT_SOURCE_DIR}/shaders/phase3_smoke.hlsl"
+            --stage vertex
+            --entry vertexMain
+    )
+    add_test(
+        NAME shader_dxc_pixel_validation
+        COMMAND RayTime --validate-shader
+            "${CMAKE_CURRENT_SOURCE_DIR}/shaders/phase3_smoke.hlsl"
+            --stage pixel
+            --entry pixelMain
+    )
     set_tests_properties(
         shader_dxc_cache_validation
-        PROPERTIES
-            LABELS "shader;integration"
-            SKIP_RETURN_CODE 77
+        shader_dxc_vertex_validation
+        shader_dxc_pixel_validation
+        PROPERTIES LABELS "shader;integration" SKIP_RETURN_CODE 77
     )
 endif()
