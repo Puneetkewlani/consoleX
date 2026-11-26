@@ -13,6 +13,8 @@ add_executable(RayTime
     src/graphics/d3d12_resources.cpp
     src/graphics/graphics_validation.cpp
     src/gpu/d3d12_context.cpp
+    src/gpu/gpu_capabilities.cpp
+    src/gpu/performance_metrics.cpp
     src/raytracing/dxr_capabilities.cpp
     src/raytracing/dxr_validation.cpp
     src/shader/dxc_shader_compiler.cpp
@@ -91,5 +93,21 @@ if(BUILD_TESTING)
     set_tests_properties(
         dxr_synthetic_triangle_hit_miss
         PROPERTIES LABELS "integration;dxr" SKIP_RETURN_CODE 77
+    )
+    add_test(
+        NAME gpu_warp_capability_report
+        COMMAND RayTime --gpu-capabilities --warp
+    )
+    set_tests_properties(
+        gpu_warp_capability_report
+        PROPERTIES LABELS "integration;gpu"
+    )
+    add_test(
+        NAME gpu_warp_copy_benchmark
+        COMMAND RayTime --benchmark-gpu --warp
+    )
+    set_tests_properties(
+        gpu_warp_copy_benchmark
+        PROPERTIES LABELS "integration;gpu;performance"
     )
 endif()

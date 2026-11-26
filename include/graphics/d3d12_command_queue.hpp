@@ -21,6 +21,10 @@ public:
         core::Error& error);
     [[nodiscard]] bool waitForGpu(core::Error& error);
 
+    [[nodiscard]] ID3D12CommandQueue* nativeHandle() const noexcept {
+        return m_queue.Get();
+    }
+
 private:
     Microsoft::WRL::ComPtr<ID3D12Device> m_device;
     Microsoft::WRL::ComPtr<ID3D12CommandQueue> m_queue;

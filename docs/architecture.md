@@ -4,6 +4,8 @@
 
 - **Core:** initialization, structured errors, logging, and shared lifetime rules.
 - **GPU:** adapter enumeration and capability reporting through DXGI/D3D12.
+  Phase 5's initial report includes vendor ID, memory, shader model, binding
+  tier, and DXR tier; see [gpu_capabilities.md](gpu_capabilities.md).
 - **Graphics:** a future backend-neutral command/resource model with a D3D12
   implementation. Translation must be limited to operations whose semantics
   are understood and testable.
@@ -55,4 +57,5 @@ and lawful development inputs, broad compatibility is not a credible claim.
 
 AMD GPUs are selected through the same vendor-independent DXGI/D3D12 path.
 Vendor-specific reporting and any FidelityFX/FSR investigation must use
-officially supported interfaces; no FSR support is claimed by this phase.
+officially supported interfaces. Current GPU reporting identifies the AMD PCI
+vendor ID but does not measure AMD-specific telemetry or claim FSR support.

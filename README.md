@@ -93,6 +93,7 @@ ConsoleX/
 ├── docs/
 │   ├── architecture.md
 │   ├── graphics_pipeline.md
+│   ├── gpu_capabilities.md
 │   ├── raytracing.md
 │   ├── shader_pipeline.md
 │   └── compatibility.md
@@ -147,10 +148,12 @@ ConsoleX/
   claimed.
 
 ### Phase 5 — AMD Optimization
-- AMD Radeon GPU detection.
-- GPU performance profiling.
-- FSR integration research.
-- Rendering optimization.
+- Implemented: vendor-ID-based GPU identification, D3D12 capability report,
+  DXGI process memory-usage/budget snapshot, and a timestamped synthetic copy
+  benchmark with CPU submit/fence timing.
+- Planned: AMD-specific telemetry and supported FSR integration research.
+  AMD detection alone does not imply FSR support; synthetic copy rates are not
+  game performance or frame time.
 
 ### Phase 6 — Compatibility Runtime
 - Runtime interface abstractions.
@@ -213,6 +216,21 @@ Run the synthetic shader compiler/cache check (requires DXC on `PATH`):
 The CTest shader checks validate the compute, vertex, and pixel profiles. DXC
 is optional for the rest of the application; shader tests are skipped when it
 is not available.
+
+Report adapter vendor, memory, shader model, binding tier, and DXR tier:
+
+```powershell
+.\build\Release\RayTime.exe --gpu-capabilities
+```
+
+Run a small synthetic GPU copy benchmark:
+
+```powershell
+.\build\Release\RayTime.exe --benchmark-gpu
+```
+
+See [GPU capability and benchmark reporting](docs/gpu_capabilities.md) for
+metric limitations and FSR integration status.
 
 ## Design Philosophy
 

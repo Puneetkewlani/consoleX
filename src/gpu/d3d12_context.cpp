@@ -113,6 +113,10 @@ bool D3D12Context::initialize(bool useWarp, core::Error& error) {
             error, "IDXGIAdapter1::GetDesc1", result);
     }
     m_adapterName = adapterDescription.Description;
+    m_vendorId = adapterDescription.VendorId;
+    m_deviceId = adapterDescription.DeviceId;
+    m_dedicatedVideoMemoryBytes =
+        static_cast<std::uint64_t>(adapterDescription.DedicatedVideoMemory);
 
     if (!createDeviceForAdapter(
             m_adapter.Get(), m_featureLevel, m_device.ReleaseAndGetAddressOf())) {

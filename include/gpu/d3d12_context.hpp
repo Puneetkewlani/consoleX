@@ -4,6 +4,7 @@
 #include "graphics/d3d12_command_queue.hpp"
 
 #include <string>
+#include <cstdint>
 
 #include <d3d12.h>
 #include <dxgi1_4.h>
@@ -32,6 +33,22 @@ public:
         return m_adapterName;
     }
 
+    [[nodiscard]] std::uint32_t vendorId() const noexcept {
+        return m_vendorId;
+    }
+
+    [[nodiscard]] std::uint32_t deviceId() const noexcept {
+        return m_deviceId;
+    }
+
+    [[nodiscard]] std::uint64_t dedicatedVideoMemoryBytes() const noexcept {
+        return m_dedicatedVideoMemoryBytes;
+    }
+
+    [[nodiscard]] IDXGIAdapter1* adapter() const noexcept {
+        return m_adapter.Get();
+    }
+
     [[nodiscard]] D3D_FEATURE_LEVEL featureLevel() const noexcept {
         return m_featureLevel;
     }
@@ -49,6 +66,9 @@ private:
     ComPtr<ID3D12Device> m_device;
     graphics::D3D12CommandQueue m_commandQueue;
     std::wstring m_adapterName;
+    std::uint32_t m_vendorId = 0;
+    std::uint32_t m_deviceId = 0;
+    std::uint64_t m_dedicatedVideoMemoryBytes = 0;
     D3D_FEATURE_LEVEL m_featureLevel = D3D_FEATURE_LEVEL_11_0;
     bool m_usedWarp = false;
 };

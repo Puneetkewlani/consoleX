@@ -1,10 +1,13 @@
 #include "gpu/d3d12_context.hpp"
+#include "gpu/gpu_capabilities.hpp"
+#include "gpu/performance_metrics.hpp"
 #include "graphics/graphics_validation.hpp"
 #include "raytracing/dxr_capabilities.hpp"
 #include "raytracing/dxr_validation.hpp"
 #include "shader/dxc_shader_compiler.hpp"
 
 #include <filesystem>
+#include <iomanip>
 #include <iostream>
 #include <string_view>
 
@@ -14,12 +17,16 @@ void printUsage() {
     std::cout << "RayTime - Windows D3D12 initialization research framework\n"
                  "Usage:\n"
                  "  RayTime [--warp] [--validate]\n"
+                 "  RayTime --gpu-capabilities [--warp]\n"
+                 "  RayTime --benchmark-gpu [--warp]\n"
                  "  RayTime --raytracing-capabilities [--warp]\n"
                  "  RayTime --validate-dxr <shader> [--warp] [DXC options]\n"
                  "  RayTime --compile-shader <file> [shader options]\n"
                  "  RayTime --validate-shader <file> [shader options]\n"
                  "  --warp      Select Microsoft's software D3D12 adapter.\n"
                  "  --validate  Run D3D12 resource, copy, and synchronization checks.\n"
+                 "  --gpu-capabilities  Report adapter vendor and D3D12 capabilities.\n"
+                 "  --benchmark-gpu  Time a synthetic GPU copy workload.\n"
                  "  --raytracing-capabilities  Query the selected adapter's DXR tier.\n"
                  "  --validate-dxr  Dispatch rays against a synthetic triangle and check readback.\n"
                  "Shader options: --stage vertex|pixel|compute|library, --entry <name>,\n"
@@ -67,6 +74,8 @@ int main(int argc, char* argv[]) {
     bool validateShader = false;
     bool shaderCommand = false;
     bool validateDxr = false;
+    bool reportGpuCapabilities = false;
+    bool benchmarkGpu = false;
     bool reportRaytracingCapabilities = false;
     bool debugShaders = false;
     bool shaderOptionsSeen = false;
@@ -85,6 +94,10 @@ int main(int argc, char* argv[]) {
             useWarp = true;
         } else if (argument == "--validate") {
             validate = true;
+        } else if (argument == "--gpu-capabilities") {
+            reportGpuCapabilities = true;
+        } else if (argument == "--benchmark-gpu") {
+            benchmarkGpu = true;
         } else if (argument == "--raytracing-capabilities") {
             reportRaytracingCapabilities = true;
         } else if (argument == "--validate-dxr") {
@@ -158,7 +171,9 @@ int main(int argc, char* argv[]) {
         printUsage();
         return 2;
     }
-    if (validateDxr && (validate || reportRaytracingCapabilities)) {
+    if (validateDxr &&
+        (validate || reportGpuCapabilities || reportRaytracingCapabilities ||
+         benchmarkGpu)) {
         std::cerr << "--validate-dxr cannot be combined with other D3D12 validation commands.\n";
         return 2;
     }
@@ -171,8 +186,8 @@ int main(int argc, char* argv[]) {
             std::cerr << "Shader source path cannot be empty.\n";
             return 2;
         }
-        if (validate || useWarp || validateDxr ||
-            reportRaytracingCapabilities) {
+        if (validate || useWarp || validateDxr || reportGpuCapabilities ||
+            reportRaytracingCapabilities || benchmarkGpu) {
             std::cerr << "D3D12 options cannot be combined with shader compilation.\n";
             return 2;
         }
@@ -217,8 +232,18 @@ int main(int argc, char* argv[]) {
         return 0;
     }
 
-    if (reportRaytracingCapabilities && validate) {
-        std::cerr << "--raytracing-capabilities cannot be combined with --validate.\n";
+    if ((reportRaytracingCapabilities || reportGpuCapabilities ||
+         benchmarkGpu) &&
+        validate) {
+        std::cerr << "GPU reports and benchmarks cannot be combined with --validate.\n";
+        return 2;
+    }
+    const unsigned int gpuCommandCount =
+        static_cast<unsigned int>(reportRaytracingCapabilities) +
+        static_cast<unsigned int>(reportGpuCapabilities) +
+        static_cast<unsigned int>(benchmarkGpu);
+    if (gpuCommandCount > 1) {
+        std::cerr << "Select only one GPU capability report or benchmark.\n";
         return 2;
     }
 
@@ -235,6 +260,102 @@ int main(int argc, char* argv[]) {
     std::cout << "[D3D12] Adapter type: "
               << (context.usedWarp() ? "WARP software adapter" : "hardware")
               << '\n';
+
+    if (benchmarkGpu) {
+        raytime::gpu::GpuWorkloadMetrics metrics;
+        if (!raytime::gpu::runGpuCopyBenchmark(
+                context.device(), context.commandQueue(), metrics, error)) {
+            std::cerr << "[error] " << error.message << '\n';
+            return 1;
+        }
+        std::cout << std::fixed << std::setprecision(3);
+        std::cout << "[GPU benchmark] Workload: " << metrics.copyCount
+                  << " copies of 4 MiB (" << metrics.bytesCopied
+                  << " bytes total)\n";
+        std::cout << "[GPU benchmark] GPU timestamp duration: "
+                  << metrics.gpuElapsedMilliseconds << " ms\n";
+        std::cout << "[GPU benchmark] CPU submit + fence wait: "
+                  << metrics.cpuSubmitAndWaitMilliseconds << " ms\n";
+        std::cout << "[GPU benchmark] Effective copy throughput: "
+                  << metrics.effectiveThroughputGigabytesPerSecond()
+                  << " GB/s\n";
+        std::cout << "[GPU benchmark] Synthetic workload metric only; not "
+                     "frame time or GPU utilization.\n";
+        return 0;
+    }
+
+    if (reportGpuCapabilities) {
+        raytime::gpu::GpuCapabilities capabilities;
+        if (!raytime::gpu::queryGpuCapabilities(
+                context.device(), context.vendorId(), capabilities, error)) {
+            std::cerr << "[error] " << error.message << '\n';
+            return 1;
+        }
+
+        std::wcout << L"[GPU] Adapter name: " << context.adapterName() << L'\n';
+        std::cout << "[GPU] Vendor: "
+                  << raytime::gpu::gpuVendorName(capabilities.vendor)
+                  << " (vendor ID 0x" << std::hex << context.vendorId()
+                  << ", device ID 0x" << context.deviceId() << std::dec << ")\n";
+        std::cout << "[GPU] AMD vendor match: "
+                  << (capabilities.vendor == raytime::gpu::GpuVendor::Amd
+                          ? "yes"
+                          : "no")
+                  << '\n';
+        std::cout << "[GPU] Dedicated video memory: ";
+        if (context.dedicatedVideoMemoryBytes() == 0) {
+            std::cout << "not reported by DXGI\n";
+        } else {
+            std::cout << context.dedicatedVideoMemoryBytes() /
+                             (1024U * 1024U)
+                      << " MiB\n";
+        }
+        raytime::gpu::GpuLocalMemoryInfo memoryInfo;
+        if (!raytime::gpu::queryGpuLocalMemoryInfo(
+                context.adapter(), memoryInfo, error)) {
+            std::cerr << "[error] " << error.message << '\n';
+            return 1;
+        }
+        std::cout << "[GPU] Process local-memory usage/budget: ";
+        if (memoryInfo.available) {
+            constexpr std::uint64_t bytesPerMiB = 1024U * 1024U;
+            std::cout << memoryInfo.currentUsageBytes / bytesPerMiB << '/'
+                      << memoryInfo.budgetBytes / bytesPerMiB << " MiB\n";
+        } else {
+            std::cout << "not available from DXGI\n";
+        }
+        std::cout << "[GPU] D3D feature level: "
+                  << featureLevelName(context.featureLevel()) << '\n';
+        std::cout << "[GPU] Highest reported shader model: "
+                  << raytime::gpu::shaderModelName(capabilities.shaderModel);
+        if (raytime::gpu::shaderModelName(capabilities.shaderModel) ==
+            "unknown") {
+            std::cout << " (value 0x" << std::hex
+                      << static_cast<unsigned int>(capabilities.shaderModel)
+                      << std::dec << ')';
+        }
+        std::cout << '\n';
+        std::cout << "[GPU] Resource binding tier: "
+                  << static_cast<unsigned int>(
+                         capabilities.resourceBindingTier)
+                  << '\n';
+
+        raytime::raytracing::DxrCapabilities dxrCapabilities;
+        if (!raytime::raytracing::queryDxrCapabilities(
+                context.device(), dxrCapabilities, error)) {
+            std::cerr << "[error] " << error.message << '\n';
+            return 1;
+        }
+        std::cout << "[GPU] DXR tier: " << dxrCapabilities.tierName();
+        if (dxrCapabilities.tierName() == "unknown") {
+            std::cout << " (value "
+                      << static_cast<unsigned int>(dxrCapabilities.tier) << ')';
+        }
+        std::cout << '\n';
+        std::cout << "[GPU] Vendor identification uses the DXGI PCI vendor ID; "
+                     "it does not validate a specific Radeon model or driver.\n";
+        return 0;
+    }
 
     if (reportRaytracingCapabilities) {
         raytime::raytracing::DxrCapabilities capabilities;
