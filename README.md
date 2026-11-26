@@ -93,11 +93,13 @@ ConsoleX/
 ├── docs/
 │   ├── architecture.md
 │   ├── graphics_pipeline.md
+│   ├── shader_pipeline.md
 │   └── compatibility.md
 │
 ├── include/
 │   ├── core/
 │   ├── graphics/
+│   ├── shader/
 │   ├── raytracing/
 │   ├── runtime/
 │   └── gpu/
@@ -108,6 +110,7 @@ ConsoleX/
 │   ├── raytracing/
 │   ├── runtime/
 │   ├── gpu/
+│   ├── shader/
 │   └── main.cpp
 │
 ├── shaders/
@@ -131,10 +134,9 @@ ConsoleX/
 - Rendering operation translation.
 
 ### Phase 3 — Shader Translation
-- HLSL compilation.
-- DXIL generation.
-- Shader validation.
-- Shader caching.
+- Experimental HLSL compilation and DXIL container checks through DXC.
+- Content-addressed caching for shaders without `#include` dependencies.
+- No Xbox shader format or translation support is claimed.
 
 ### Phase 4 — Ray Tracing
 - DXR integration.
@@ -164,6 +166,7 @@ ConsoleX/
 - Windows SDK.
 - CMake.
 - DirectX 12-compatible GPU.
+- DXC (`dxc.exe`) is optional and required only for shader compile commands.
 
 **Recommended hardware**
 
@@ -184,7 +187,7 @@ cd ConsoleX
 Configure the project:
 
 ```bash
-cmake -S . -B build
+cmake -S . -B build -A x64
 ```
 
 Build:
@@ -196,10 +199,14 @@ cmake --build build --config Release
 Run the executable:
 
 ```bash
-.\build\Release\ConsoleX.exe
+.\build\Release\RayTime.exe
 ```
 
-*Build commands will be updated as the implementation evolves.*
+Run the synthetic shader compiler/cache check (requires DXC on `PATH`):
+
+```powershell
+.\build\Release\RayTime.exe --validate-shader .\shaders\phase3_smoke.hlsl --stage compute
+```
 
 ## Design Philosophy
 

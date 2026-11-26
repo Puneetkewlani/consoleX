@@ -26,8 +26,9 @@ The intended later flow is:
 5. Report unsupported operations rather than silently dropping or approximating
    them.
 
-Descriptor heaps, broad texture formats and operations, shader compilation,
-frame presentation, and rendering correctness remain unimplemented. State
+Descriptor heaps, broad texture formats and operations, frame presentation,
+and rendering correctness remain unimplemented. HLSL compilation experiments
+are described in [shader_pipeline.md](shader_pipeline.md). State
 transitions are explicit; callers must supply the actual before-state and keep
 resources alive through queue completion. The initial queue API blocks until
 submitted work completes and is intended for serialized single-queue use.

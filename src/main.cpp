@@ -1,6 +1,8 @@
 #include "gpu/d3d12_context.hpp"
 #include "graphics/graphics_validation.hpp"
+#include "shader/dxc_shader_compiler.hpp"
 
+#include <filesystem>
 #include <iostream>
 #include <string_view>
 
@@ -8,9 +10,32 @@ namespace {
 
 void printUsage() {
     std::cout << "RayTime - Windows D3D12 initialization research framework\n"
-                 "Usage: RayTime [--warp] [--validate]\n"
+                 "Usage:\n"
+                 "  RayTime [--warp] [--validate]\n"
+                 "  RayTime --compile-shader <file> [shader options]\n"
+                 "  RayTime --validate-shader <file> [shader options]\n"
                  "  --warp      Select Microsoft's software D3D12 adapter.\n"
-                 "  --validate  Run D3D12 resource, copy, and synchronization checks.\n";
+                 "  --validate  Run D3D12 resource, copy, and synchronization checks.\n"
+                 "Shader options: --stage vertex|pixel|compute, --entry <name>,\n"
+                 "                --dxc <path>, --cache-dir <path>, --debug-shaders\n";
+}
+
+bool parseShaderStage(
+    std::string_view value,
+    raytime::shader::ShaderStage& stage) {
+    if (value == "vertex") {
+        stage = raytime::shader::ShaderStage::Vertex;
+        return true;
+    }
+    if (value == "pixel") {
+        stage = raytime::shader::ShaderStage::Pixel;
+        return true;
+    }
+    if (value == "compute") {
+        stage = raytime::shader::ShaderStage::Compute;
+        return true;
+    }
+    return false;
 }
 
 const char* featureLevelName(D3D_FEATURE_LEVEL featureLevel) {
@@ -29,6 +54,16 @@ const char* featureLevelName(D3D_FEATURE_LEVEL featureLevel) {
 int main(int argc, char* argv[]) {
     bool useWarp = false;
     bool validate = false;
+    bool validateShader = false;
+    bool shaderCommand = false;
+    bool debugShaders = false;
+    bool shaderOptionsSeen = false;
+    std::filesystem::path shaderSource;
+    std::filesystem::path dxcExecutable;
+    std::filesystem::path cacheDirectory;
+    raytime::shader::ShaderStage shaderStage =
+        raytime::shader::ShaderStage::Compute;
+    std::string shaderEntry = "main";
 
     for (int index = 1; index < argc; ++index) {
         const std::string_view argument(argv[index]);
@@ -36,6 +71,47 @@ int main(int argc, char* argv[]) {
             useWarp = true;
         } else if (argument == "--validate") {
             validate = true;
+        } else if (argument == "--compile-shader" ||
+                   argument == "--validate-shader") {
+            if (index + 1 >= argc || shaderCommand) {
+                std::cerr << "Provide exactly one shader source path.\n";
+                printUsage();
+                return 2;
+            }
+            shaderCommand = true;
+            validateShader = argument == "--validate-shader";
+            shaderSource = argv[++index];
+        } else if (argument == "--stage") {
+            shaderOptionsSeen = true;
+            if (index + 1 >= argc ||
+                !parseShaderStage(argv[++index], shaderStage)) {
+                std::cerr << "Shader stage must be vertex, pixel, or compute.\n";
+                return 2;
+            }
+        } else if (argument == "--entry") {
+            shaderOptionsSeen = true;
+            if (index + 1 >= argc) {
+                std::cerr << "--entry requires a function name.\n";
+                return 2;
+            }
+            shaderEntry = argv[++index];
+        } else if (argument == "--dxc") {
+            shaderOptionsSeen = true;
+            if (index + 1 >= argc) {
+                std::cerr << "--dxc requires an executable path.\n";
+                return 2;
+            }
+            dxcExecutable = argv[++index];
+        } else if (argument == "--cache-dir") {
+            shaderOptionsSeen = true;
+            if (index + 1 >= argc) {
+                std::cerr << "--cache-dir requires a directory path.\n";
+                return 2;
+            }
+            cacheDirectory = argv[++index];
+        } else if (argument == "--debug-shaders") {
+            shaderOptionsSeen = true;
+            debugShaders = true;
         } else if (argument == "--help" || argument == "-h") {
             printUsage();
             return 0;
@@ -44,6 +120,60 @@ int main(int argc, char* argv[]) {
             printUsage();
             return 2;
         }
+    }
+
+    if (shaderOptionsSeen && !shaderCommand) {
+        std::cerr << "Shader options require --compile-shader or --validate-shader.\n";
+        return 2;
+    }
+    if (shaderCommand) {
+        if (shaderSource.empty()) {
+            std::cerr << "Shader source path cannot be empty.\n";
+            return 2;
+        }
+        if (validate || useWarp) {
+            std::cerr << "D3D12 options cannot be combined with shader compilation.\n";
+            return 2;
+        }
+
+        raytime::shader::DxcShaderCompiler compiler;
+        raytime::core::Error error;
+        if (!compiler.initialize(dxcExecutable, cacheDirectory, error)) {
+            std::cerr << "[error] " << error.message << '\n';
+            return error.resultCode ==
+                    raytime::shader::dxcUnavailableResultCode
+                ? 77
+                : 1;
+        }
+
+        raytime::shader::ShaderCompileDescription description;
+        description.sourcePath = shaderSource;
+        description.stage = shaderStage;
+        description.entryPoint = shaderEntry;
+        description.debugInformation = debugShaders;
+
+        if (validateShader) {
+            if (!raytime::shader::validateShaderCache(
+                    compiler, description, error)) {
+                std::cerr << "[error] " << error.message << '\n';
+                return 1;
+            }
+            std::cout << "[shader] DXC compilation and cache validation passed.\n";
+            return 0;
+        }
+
+        raytime::shader::CompiledShader compiled;
+        if (!compiler.compile(description, compiled, error)) {
+            std::cerr << "[error] " << error.message << '\n';
+            return 1;
+        }
+        std::cout << "[shader] Compiled " << compiled.dxil.size()
+                  << " DXIL bytes (cache "
+                  << (compiled.cacheHit ? "hit" : "miss") << ").\n";
+        if (!compiled.diagnostics.empty()) {
+            std::clog << compiled.diagnostics;
+        }
+        return 0;
     }
 
     raytime::gpu::D3D12Context context;
