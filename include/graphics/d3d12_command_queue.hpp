@@ -16,6 +16,7 @@ public:
     D3D12CommandQueue& operator=(const D3D12CommandQueue&) = delete;
 
     [[nodiscard]] bool initialize(ID3D12Device* device, core::Error& error);
+    void reset() noexcept;
     [[nodiscard]] bool executeAndWait(
         D3D12CommandList& commandList,
         core::Error& error);

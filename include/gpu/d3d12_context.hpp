@@ -20,6 +20,7 @@ public:
 
     [[nodiscard]] bool initialize(bool useWarp, core::Error& error);
     [[nodiscard]] bool waitForGpu(core::Error& error);
+    void shutdown() noexcept;
 
     [[nodiscard]] ID3D12Device* device() const noexcept {
         return m_device.Get();

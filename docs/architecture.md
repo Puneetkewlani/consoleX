@@ -16,6 +16,8 @@
   HLSL inputs and the external DXC compiler; this is not a general Xbox shader
   decompiler. See [shader_pipeline.md](shader_pipeline.md).
 - **Runtime compatibility:** explicit interfaces for documented behavior only.
+  Phase 6 adds a runtime session around the existing Windows capabilities and
+  synthetic checks; see [runtime_compatibility.md](runtime_compatibility.md).
   Unsupported console-specific interfaces remain unsupported.
 
 Phases 1-2 implement the Windows process entry point, DXGI adapter selection,
@@ -28,7 +30,10 @@ implemented. Phase 3 adds experimental DXC compilation for ordinary HLSL
 files and caching for sources without includes; it does not accept console
 shader formats. Phase 4 adds a DXR capability query and a synthetic triangle
 BLAS/TLAS plus ray dispatch smoke test. General scene rendering and console
-shader formats remain unsupported.
+shader formats remain unsupported. Phase 6 integrates the documented Windows
+device, synthetic graphics checks, GPU timing, and optional DXC compilation
+and DXR validation into one lifecycle-managed runtime session. The public
+runtime reports capability data without exposing the underlying D3D12 device.
 
 ## Technical feasibility
 

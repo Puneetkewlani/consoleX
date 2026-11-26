@@ -95,6 +95,7 @@ ConsoleX/
 │   ├── graphics_pipeline.md
 │   ├── gpu_capabilities.md
 │   ├── raytracing.md
+│   ├── runtime_compatibility.md
 │   ├── shader_pipeline.md
 │   └── compatibility.md
 │
@@ -155,11 +156,13 @@ ConsoleX/
   AMD detection alone does not imply FSR support; synthetic copy rates are not
   game performance or frame time.
 
-### Phase 6 — Compatibility Runtime
-- Runtime interface abstractions.
-- Supported API translation.
-- Compatibility testing.
-- Integration of developed subsystems.
+### Phase 6 — Compatibility Runtime (scoped implementation complete)
+- Implemented: explicit runtime session lifecycle, D3D12/GPU/DXR capability
+  snapshot without exposing native device handles, synthetic resource
+  validation, GPU copy timing, optional DXC compilation, and DXR triangle
+  validation in one runtime smoke path.
+- Unsupported Xbox-specific interfaces remain explicitly unsupported.
+- See [runtime compatibility](docs/runtime_compatibility.md).
 
 ## System Requirements
 
@@ -171,7 +174,8 @@ ConsoleX/
 - Windows SDK.
 - CMake.
 - DirectX 12-compatible GPU.
-- DXC (`dxc.exe`) is optional and required only for shader compile commands.
+- DXC (`dxc.exe`) is optional; it is needed for shader compilation and for the
+  DXR/runtime smoke tests to exercise their shader paths.
 
 **Recommended hardware**
 
@@ -231,6 +235,18 @@ Run a small synthetic GPU copy benchmark:
 
 See [GPU capability and benchmark reporting](docs/gpu_capabilities.md) for
 metric limitations and FSR integration status.
+
+Run the integrated synthetic runtime smoke path:
+
+```powershell
+.\build\Release\RayTime.exe --runtime-smoke .\shaders\phase3_smoke.hlsl --raytracing-shader .\shaders\phase4_smoke.hlsl
+```
+
+Pass `--dxc <path>` if DXC is installed but not on `PATH`. The smoke path
+reports DXR validation as skipped when the adapter lacks DXR or DXC is
+unavailable. See
+[runtime compatibility](docs/runtime_compatibility.md) for the exact support
+boundary.
 
 ## Design Philosophy
 

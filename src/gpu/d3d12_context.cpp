@@ -136,4 +136,17 @@ bool D3D12Context::waitForGpu(core::Error& error) {
     return m_commandQueue.waitForGpu(error);
 }
 
+void D3D12Context::shutdown() noexcept {
+    m_commandQueue.reset();
+    m_device.Reset();
+    m_adapter.Reset();
+    m_factory.Reset();
+    m_adapterName.clear();
+    m_vendorId = 0;
+    m_deviceId = 0;
+    m_dedicatedVideoMemoryBytes = 0;
+    m_featureLevel = D3D_FEATURE_LEVEL_11_0;
+    m_usedWarp = false;
+}
+
 } // namespace raytime::gpu

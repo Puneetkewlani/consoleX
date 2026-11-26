@@ -17,6 +17,7 @@ add_executable(RayTime
     src/gpu/performance_metrics.cpp
     src/raytracing/dxr_capabilities.cpp
     src/raytracing/dxr_validation.cpp
+    src/runtime/runtime_session.cpp
     src/shader/dxc_shader_compiler.cpp
 )
 
@@ -109,5 +110,17 @@ if(BUILD_TESTING)
     set_tests_properties(
         gpu_warp_copy_benchmark
         PROPERTIES LABELS "integration;gpu;performance"
+    )
+    add_test(
+        NAME runtime_warp_synthetic_smoke
+        COMMAND RayTime --runtime-smoke
+            "${CMAKE_CURRENT_SOURCE_DIR}/shaders/phase3_smoke.hlsl"
+            --raytracing-shader
+            "${CMAKE_CURRENT_SOURCE_DIR}/shaders/phase4_smoke.hlsl"
+            --warp
+    )
+    set_tests_properties(
+        runtime_warp_synthetic_smoke
+        PROPERTIES LABELS "integration;runtime"
     )
 endif()

@@ -4,6 +4,7 @@
 #include "graphics/graphics_validation.hpp"
 #include "raytracing/dxr_capabilities.hpp"
 #include "raytracing/dxr_validation.hpp"
+#include "runtime/runtime_session.hpp"
 #include "shader/dxc_shader_compiler.hpp"
 
 #include <filesystem>
@@ -19,6 +20,8 @@ void printUsage() {
                  "  RayTime [--warp] [--validate]\n"
                  "  RayTime --gpu-capabilities [--warp]\n"
                  "  RayTime --benchmark-gpu [--warp]\n"
+                 "  RayTime --runtime-smoke <compute-shader> [--raytracing-shader <library>]\n"
+                 "          [--warp] [DXC options]\n"
                  "  RayTime --raytracing-capabilities [--warp]\n"
                  "  RayTime --validate-dxr <shader> [--warp] [DXC options]\n"
                  "  RayTime --compile-shader <file> [shader options]\n"
@@ -27,6 +30,7 @@ void printUsage() {
                  "  --validate  Run D3D12 resource, copy, and synchronization checks.\n"
                  "  --gpu-capabilities  Report adapter vendor and D3D12 capabilities.\n"
                  "  --benchmark-gpu  Time a synthetic GPU copy workload.\n"
+                 "  --runtime-smoke  Run the documented synthetic runtime path.\n"
                  "  --raytracing-capabilities  Query the selected adapter's DXR tier.\n"
                  "  --validate-dxr  Dispatch rays against a synthetic triangle and check readback.\n"
                  "Shader options: --stage vertex|pixel|compute|library, --entry <name>,\n"
@@ -76,12 +80,15 @@ int main(int argc, char* argv[]) {
     bool validateDxr = false;
     bool reportGpuCapabilities = false;
     bool benchmarkGpu = false;
+    bool runtimeSmoke = false;
     bool reportRaytracingCapabilities = false;
     bool debugShaders = false;
     bool shaderOptionsSeen = false;
     bool shaderStageOptionsSeen = false;
     std::filesystem::path shaderSource;
     std::filesystem::path raytracingShaderSource;
+    std::filesystem::path runtimeShaderSource;
+    std::filesystem::path runtimeRaytracingShaderSource;
     std::filesystem::path dxcExecutable;
     std::filesystem::path cacheDirectory;
     raytime::shader::ShaderStage shaderStage =
@@ -98,10 +105,27 @@ int main(int argc, char* argv[]) {
             reportGpuCapabilities = true;
         } else if (argument == "--benchmark-gpu") {
             benchmarkGpu = true;
+        } else if (argument == "--runtime-smoke") {
+            if (index + 1 >= argc || runtimeSmoke) {
+                std::cerr << "--runtime-smoke requires one shader source path.\n";
+                printUsage();
+                return 2;
+            }
+            runtimeSmoke = true;
+            runtimeShaderSource = argv[++index];
+        } else if (argument == "--raytracing-shader") {
+            if (index + 1 >= argc ||
+                !runtimeRaytracingShaderSource.empty()) {
+                std::cerr << "--raytracing-shader requires one library path.\n";
+                printUsage();
+                return 2;
+            }
+            runtimeRaytracingShaderSource = argv[++index];
         } else if (argument == "--raytracing-capabilities") {
             reportRaytracingCapabilities = true;
         } else if (argument == "--validate-dxr") {
-            if (index + 1 >= argc || validateDxr || shaderCommand) {
+            if (index + 1 >= argc || validateDxr || shaderCommand ||
+                runtimeSmoke) {
                 std::cerr << "--validate-dxr requires one shader-library path.\n";
                 printUsage();
                 return 2;
@@ -110,7 +134,8 @@ int main(int argc, char* argv[]) {
             raytracingShaderSource = argv[++index];
         } else if (argument == "--compile-shader" ||
                    argument == "--validate-shader") {
-            if (index + 1 >= argc || shaderCommand || validateDxr) {
+            if (index + 1 >= argc || shaderCommand || validateDxr ||
+                runtimeSmoke) {
                 std::cerr << "Provide exactly one shader source path.\n";
                 printUsage();
                 return 2;
@@ -161,24 +186,34 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    if (shaderOptionsSeen && !shaderCommand && !validateDxr) {
+    if (shaderOptionsSeen && !shaderCommand && !validateDxr && !runtimeSmoke) {
         std::cerr << "Shader options require a shader compilation command.\n";
         printUsage();
         return 2;
     }
-    if (shaderStageOptionsSeen && validateDxr) {
-        std::cerr << "--stage and --entry cannot be combined with --validate-dxr.\n";
+    if (!runtimeSmoke && !runtimeRaytracingShaderSource.empty()) {
+        std::cerr << "--raytracing-shader requires --runtime-smoke.\n";
+        return 2;
+    }
+    if (shaderStageOptionsSeen && (validateDxr || runtimeSmoke)) {
+        std::cerr << "--stage and --entry cannot be used with this runtime command.\n";
         printUsage();
         return 2;
     }
     if (validateDxr &&
         (validate || reportGpuCapabilities || reportRaytracingCapabilities ||
-         benchmarkGpu)) {
+         benchmarkGpu || runtimeSmoke)) {
         std::cerr << "--validate-dxr cannot be combined with other D3D12 validation commands.\n";
         return 2;
     }
-    if (shaderCommand && validateDxr) {
-        std::cerr << "Select either shader compilation or DXR validation, not both.\n";
+    if (shaderCommand && (validateDxr || runtimeSmoke)) {
+        std::cerr << "Select either shader compilation or a runtime validation command.\n";
+        return 2;
+    }
+    if (runtimeSmoke &&
+        (validate || reportGpuCapabilities || reportRaytracingCapabilities ||
+         benchmarkGpu)) {
+        std::cerr << "--runtime-smoke cannot be combined with another validation/report command.\n";
         return 2;
     }
     if (shaderCommand) {
@@ -186,7 +221,8 @@ int main(int argc, char* argv[]) {
             std::cerr << "Shader source path cannot be empty.\n";
             return 2;
         }
-        if (validate || useWarp || validateDxr || reportGpuCapabilities ||
+        if (validate || useWarp || validateDxr || runtimeSmoke ||
+            reportGpuCapabilities ||
             reportRaytracingCapabilities || benchmarkGpu) {
             std::cerr << "D3D12 options cannot be combined with shader compilation.\n";
             return 2;
@@ -229,6 +265,87 @@ int main(int argc, char* argv[]) {
         if (!compiled.diagnostics.empty()) {
             std::clog << compiled.diagnostics;
         }
+        return 0;
+    }
+
+    if (runtimeSmoke) {
+        raytime::runtime::RuntimeConfiguration configuration;
+        configuration.useWarp = useWarp;
+        configuration.dxcExecutable = dxcExecutable;
+        configuration.shaderCacheDirectory = cacheDirectory;
+        raytime::runtime::RuntimeSession session;
+        raytime::core::Error error;
+        if (!session.initialize(configuration, error)) {
+            std::cerr << "[error] " << error.message << '\n';
+            return 1;
+        }
+
+        const auto& capabilities = session.capabilities();
+        std::wcout << L"[Runtime] Adapter: " << capabilities.adapterName << L'\n';
+        std::cout << "[Runtime] Vendor: "
+                  << raytime::gpu::gpuVendorName(capabilities.gpu.vendor)
+                  << " (0x" << std::hex << capabilities.vendorId << std::dec
+                  << "), feature level "
+                  << featureLevelName(capabilities.featureLevel) << '\n';
+        std::cout << "[Runtime] Local-memory usage/budget: ";
+        if (capabilities.localVideoMemory.available) {
+            constexpr std::uint64_t bytesPerMiB = 1024U * 1024U;
+            std::cout << capabilities.localVideoMemory.currentUsageBytes /
+                             bytesPerMiB
+                      << '/'
+                      << capabilities.localVideoMemory.budgetBytes /
+                             bytesPerMiB
+                      << " MiB\n";
+        } else {
+            std::cout << "not available from DXGI\n";
+        }
+        std::cout << "[Runtime] DXR tier: "
+                  << capabilities.raytracing.tierName() << '\n';
+        std::cout << "[Runtime] Shader compiler: "
+                  << capabilities.shaderCompilerStatus << '\n';
+
+        raytime::runtime::RuntimeSmokeReport report;
+        if (!session.runSyntheticSmokeTest(
+                runtimeShaderSource,
+                runtimeRaytracingShaderSource,
+                debugShaders,
+                report,
+                error)) {
+            std::cerr << "[error] " << error.message << '\n';
+            raytime::core::Error shutdownError;
+            if (!session.shutdown(shutdownError)) {
+                std::cerr << "[error] Runtime shutdown: "
+                          << shutdownError.message << '\n';
+            }
+            return 1;
+        }
+        std::cout << "[Runtime] D3D12 resource validation passed.\n";
+        std::cout << std::fixed << std::setprecision(3);
+        std::cout << "[Runtime] Synthetic GPU copy: "
+                  << report.gpuWorkload.gpuElapsedMilliseconds
+                  << " ms GPU, "
+                  << report.gpuWorkload.cpuSubmitAndWaitMilliseconds
+                  << " ms CPU submit/fence wait.\n";
+        if (report.shaderCompiled) {
+            std::cout << "[Runtime] HLSL compile passed: "
+                      << report.shaderDxilBytes << " DXIL bytes (cache "
+                      << (report.shaderCacheHit ? "hit" : "miss") << ").\n";
+        } else {
+            std::cout << "[Runtime] HLSL compile explicitly skipped: "
+                      << report.shaderStatus << '\n';
+        }
+        std::cout << "[Runtime] DXR workload: "
+                  << report.raytracingStatus << '\n';
+        std::cout << "[Runtime] Xbox-specific runtime interfaces remain "
+                     "unsupported.\n";
+
+        raytime::core::Error shutdownError;
+        if (!session.shutdown(shutdownError)) {
+            std::cerr << "[error] Runtime shutdown: "
+                      << shutdownError.message << '\n';
+            return 1;
+        }
+        std::cout << "[Runtime] Shutdown completed.\n";
         return 0;
     }
 

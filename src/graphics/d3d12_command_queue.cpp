@@ -61,6 +61,13 @@ bool D3D12CommandQueue::initialize(ID3D12Device* device, core::Error& error) {
     return true;
 }
 
+void D3D12CommandQueue::reset() noexcept {
+    m_fence.Reset();
+    m_queue.Reset();
+    m_device.Reset();
+    m_fenceValue = 0;
+}
+
 bool D3D12CommandQueue::executeAndWait(
     D3D12CommandList& commandList,
     core::Error& error) {

@@ -14,3 +14,7 @@ synchronization can be initialized. It does not demonstrate compatibility with
 any Xbox title. The initial DXR phase reports the tier exposed by the selected
 Windows D3D12 device. An unsupported tier means no DXR workload is submitted;
 the project does not claim a software ray-tracing fallback.
+
+The Phase 6 runtime session composes documented Windows D3D12 operations and
+project-owned synthetic shaders only. It is not an Xbox runtime, game loader,
+or compatibility claim for console software.
