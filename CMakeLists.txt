@@ -3,17 +3,26 @@ cmake_minimum_required(VERSION 3.24)
 project(RayTime VERSION 0.1.0 LANGUAGES CXX)
 
 if(NOT WIN32)
-    message(FATAL_ERROR "RayTime Phase 1 currently requires Windows 10/11 and the Windows SDK.")
+    message(FATAL_ERROR "RayTime currently requires Windows 10/11 and the Windows SDK.")
 endif()
 
 add_executable(RayTime
     src/main.cpp
+    src/graphics/d3d12_command_list.cpp
+    src/graphics/d3d12_command_queue.cpp
+    src/graphics/d3d12_resources.cpp
+    src/graphics/graphics_validation.cpp
     src/gpu/d3d12_context.cpp
 )
 
 target_compile_features(RayTime PRIVATE cxx_std_20)
 target_include_directories(RayTime PRIVATE include)
-target_compile_definitions(RayTime PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_compile_definitions(RayTime PRIVATE
+    WIN32_LEAN_AND_MEAN
+    NOMINMAX
+    WINVER=0x0A00
+    _WIN32_WINNT=0x0A00
+)
 target_link_libraries(RayTime PRIVATE d3d12 dxgi)
 
 if(MSVC)
@@ -23,7 +32,7 @@ endif()
 include(CTest)
 if(BUILD_TESTING)
     add_test(
-        NAME d3d12_warp_initialization
+        NAME d3d12_warp_graphics_resources
         COMMAND RayTime --validate --warp
     )
     set_tests_properties(d3d12_warp_initialization PROPERTIES LABELS "integration;d3d12")

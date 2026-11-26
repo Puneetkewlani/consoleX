@@ -1,4 +1,5 @@
 #include "gpu/d3d12_context.hpp"
+#include "graphics/graphics_validation.hpp"
 
 #include <iostream>
 #include <string_view>
@@ -9,7 +10,7 @@ void printUsage() {
     std::cout << "RayTime - Windows D3D12 initialization research framework\n"
                  "Usage: RayTime [--warp] [--validate]\n"
                  "  --warp      Select Microsoft's software D3D12 adapter.\n"
-                 "  --validate  Run initialization and queue synchronization checks.\n";
+                 "  --validate  Run D3D12 resource, copy, and synchronization checks.\n";
 }
 
 const char* featureLevelName(D3D_FEATURE_LEVEL featureLevel) {
@@ -46,7 +47,7 @@ int main(int argc, char* argv[]) {
     }
 
     raytime::gpu::D3D12Context context;
-    raytime::gpu::InitializationError error;
+    raytime::core::Error error;
     if (!context.initialize(useWarp, error)) {
         std::cerr << "[error] " << error.message << '\n';
         return 1;
@@ -59,13 +60,18 @@ int main(int argc, char* argv[]) {
               << (context.usedWarp() ? "WARP software adapter" : "hardware")
               << '\n';
 
-    if (!context.waitForGpu(error)) {
-        std::cerr << "[error] " << error.message << '\n';
-        return 1;
+    if (validate) {
+        if (!raytime::graphics::runGraphicsValidation(context, error)) {
+            std::cerr << "[error] " << error.message << '\n';
+            return 1;
+        }
+        std::cout << "[test] D3D12 resource, command-list, and queue validation passed.\n";
+    } else {
+        if (!context.waitForGpu(error)) {
+            std::cerr << "[error] " << error.message << '\n';
+            return 1;
+        }
+        std::cout << "[D3D12] Initialization and queue synchronization completed.\n";
     }
-
-    std::cout << (validate
-        ? "[test] D3D12 initialization and queue synchronization passed.\n"
-        : "[D3D12] Initialization and queue synchronization completed.\n");
     return 0;
 }

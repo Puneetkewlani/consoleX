@@ -13,11 +13,12 @@
 - **Runtime compatibility:** explicit interfaces for documented behavior only.
   Unsupported console-specific interfaces remain unsupported.
 
-Phase 1 currently implements only the Windows process entry point and D3D12
-device/queue startup. It creates a direct command queue, allocator, command
-list, and fence, then verifies GPU queue synchronization. Resource translation,
-presentation, shader compilation, DXR, and runtime emulation are not yet
-implemented.
+Phases 1-2 implement the Windows process entry point, DXGI adapter selection,
+D3D12 device and direct-queue startup, basic resource wrappers, command-list
+recording, buffer barriers/copies, and fence synchronization. The integration
+path performs an upload-to-device-local-to-readback copy and checks the result.
+Resource descriptors/binding, general command translation, presentation,
+shader compilation, DXR, and runtime emulation are not implemented.
 
 ## Technical feasibility
 
