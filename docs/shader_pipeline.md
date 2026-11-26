@@ -3,10 +3,11 @@
 ## Phase 3 scope
 
 RayTime accepts ordinary HLSL source files and invokes an explicitly selected
-or PATH-discovered `dxc.exe` process. The initial profiles are `vs_6_0`,
-`ps_6_0`, and `cs_6_0`. DXC's normal validator remains enabled; RayTime does
-not pass `-Vd`. Successful output must have a DXIL container (`DXBC`) signature
-before it is returned.
+or PATH-discovered `dxc.exe` process. Phase 3 supports `vs_6_0`, `ps_6_0`, and
+`cs_6_0`. Phase 4 adds the `lib_6_3` profile used by the synthetic DXR
+validation shader; library compilation does not pass an entry point. DXC's
+normal validator remains enabled; RayTime does not pass `-Vd`. Successful
+output must have a DXIL container (`DXBC`) signature before it is returned.
 
 This is not Xbox shader translation. No proprietary console bytecode is
 parsed, decompiled, or translated. Compiler installation is optional for the
@@ -28,7 +29,8 @@ and returns them with successful builds; nonzero DXC exit codes are errors.
 
 The synthetic smoke shader exposes compute, vertex, and pixel entry points.
 CTest compiles and validates all three profiles; the compute test also verifies
-that a repeated compile is served from the cache.
+that a repeated compile is served from the cache. A separate Phase 4 test
+compiles the ray-tracing library profile.
 
 ## Commands
 

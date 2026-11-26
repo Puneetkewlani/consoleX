@@ -13,6 +13,8 @@ add_executable(RayTime
     src/graphics/d3d12_resources.cpp
     src/graphics/graphics_validation.cpp
     src/gpu/d3d12_context.cpp
+    src/raytracing/dxr_capabilities.cpp
+    src/raytracing/dxr_validation.cpp
     src/shader/dxc_shader_compiler.cpp
 )
 
@@ -60,10 +62,34 @@ if(BUILD_TESTING)
             --stage pixel
             --entry pixelMain
     )
+    add_test(
+        NAME shader_dxc_raytracing_library_validation
+        COMMAND RayTime --validate-shader
+            "${CMAKE_CURRENT_SOURCE_DIR}/shaders/phase4_smoke.hlsl"
+            --stage library
+    )
     set_tests_properties(
         shader_dxc_cache_validation
         shader_dxc_vertex_validation
         shader_dxc_pixel_validation
+        shader_dxc_raytracing_library_validation
         PROPERTIES LABELS "shader;integration" SKIP_RETURN_CODE 77
+    )
+    add_test(
+        NAME dxr_warp_capability_query
+        COMMAND RayTime --raytracing-capabilities --warp
+    )
+    set_tests_properties(
+        dxr_warp_capability_query
+        PROPERTIES LABELS "integration;dxr"
+    )
+    add_test(
+        NAME dxr_synthetic_triangle_hit_miss
+        COMMAND RayTime --validate-dxr
+            "${CMAKE_CURRENT_SOURCE_DIR}/shaders/phase4_smoke.hlsl"
+    )
+    set_tests_properties(
+        dxr_synthetic_triangle_hit_miss
+        PROPERTIES LABELS "integration;dxr" SKIP_RETURN_CODE 77
     )
 endif()

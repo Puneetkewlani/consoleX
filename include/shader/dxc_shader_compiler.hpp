@@ -15,6 +15,7 @@ enum class ShaderStage {
     Vertex,
     Pixel,
     Compute,
+    Library,
 };
 
 struct ShaderCompileDescription {

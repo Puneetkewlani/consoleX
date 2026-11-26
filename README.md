@@ -93,6 +93,7 @@ ConsoleX/
 ├── docs/
 │   ├── architecture.md
 │   ├── graphics_pipeline.md
+│   ├── raytracing.md
 │   ├── shader_pipeline.md
 │   └── compatibility.md
 │
@@ -139,10 +140,11 @@ ConsoleX/
 - No Xbox shader format or translation support is claimed.
 
 ### Phase 4 — Ray Tracing
-- DXR integration.
-- Acceleration structures.
-- Ray-generation and hit shaders.
-- Hardware capability detection.
+- Implemented: DXR tier query, a synthetic triangle BLAS/TLAS, DXIL library
+  compilation, ray-generation/miss/closest-hit shaders, ray dispatch, and
+  readback validation.
+- This is a smoke test, not a general scene renderer. No software fallback is
+  claimed.
 
 ### Phase 5 — AMD Optimization
 - AMD Radeon GPU detection.

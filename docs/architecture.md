@@ -8,6 +8,8 @@
   implementation. Translation must be limited to operations whose semantics
   are understood and testable.
 - **Ray tracing:** an optional DXR implementation behind runtime feature checks.
+  See [raytracing.md](raytracing.md) for the current capability and smoke-test
+  scope.
 - **Shader pipeline:** validation/compilation experiments using documented
   HLSL inputs and the external DXC compiler; this is not a general Xbox shader
   decompiler. See [shader_pipeline.md](shader_pipeline.md).
@@ -19,9 +21,12 @@ D3D12 device and direct-queue startup, basic resource wrappers, command-list
 recording, buffer barriers/copies, and fence synchronization. The integration
 path performs an upload-to-device-local-to-readback copy and checks the result.
 Resource descriptors/binding, general command translation, presentation,
-shader translation, DXR, and runtime emulation are not implemented. Phase 3
-adds experimental DXC compilation for ordinary HLSL files and caching for
-sources without includes; it does not accept console shader formats.
+shader translation, general DXR scene rendering, and runtime emulation are not
+implemented. Phase 3 adds experimental DXC compilation for ordinary HLSL
+files and caching for sources without includes; it does not accept console
+shader formats. Phase 4 adds a DXR capability query and a synthetic triangle
+BLAS/TLAS plus ray dispatch smoke test. General scene rendering and console
+shader formats remain unsupported.
 
 ## Technical feasibility
 

@@ -409,6 +409,8 @@ const wchar_t* targetProfile(ShaderStage stage) {
         return L"ps_6_0";
     case ShaderStage::Compute:
         return L"cs_6_0";
+    case ShaderStage::Library:
+        return L"lib_6_3";
     }
     return nullptr;
 }
@@ -662,7 +664,8 @@ bool DxcShaderCompiler::compile(
         error.message = "Initialize the DXC shader compiler before compiling.";
         return false;
     }
-    if (!isValidEntryPoint(description.entryPoint)) {
+    if (description.stage != ShaderStage::Library &&
+        !isValidEntryPoint(description.entryPoint)) {
         error.message = "Shader entry point must be a non-empty ASCII identifier.";
         return false;
     }
@@ -733,16 +736,16 @@ bool DxcShaderCompiler::compile(
          std::to_string(counter) + ".tmp.dxil");
     ScopedPath temporaryFile(temporaryPath);
 
-    std::vector<std::wstring> arguments{
-        L"-nologo",
-        L"-Ges",
-        L"-E",
-        std::wstring(description.entryPoint.begin(), description.entryPoint.end()),
-        L"-T",
-        profile,
-        L"-Fo",
-        temporaryPath.wstring(),
-    };
+    std::vector<std::wstring> arguments{L"-nologo", L"-Ges"};
+    if (description.stage != ShaderStage::Library) {
+        arguments.emplace_back(L"-E");
+        arguments.emplace_back(
+            description.entryPoint.begin(), description.entryPoint.end());
+    }
+    arguments.emplace_back(L"-T");
+    arguments.emplace_back(profile);
+    arguments.emplace_back(L"-Fo");
+    arguments.push_back(temporaryPath.wstring());
     if (description.debugInformation) {
         arguments.emplace_back(L"-Zi");
         arguments.emplace_back(L"-Qembed_debug");
